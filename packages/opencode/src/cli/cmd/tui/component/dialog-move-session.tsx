@@ -36,7 +36,7 @@ export function DialogMoveSession(props: { projectID: string; onSelect: (selecti
       ])
       const directories = await sdk.client.project.directories({ projectID }, { throwOnError: true })
       return {
-        directories: directories.data ?? [],
+        directories: directories.data?.map((item) => item.directory) ?? [],
         main: project.data?.id === projectID ? project.data.worktree : undefined,
       }
     },

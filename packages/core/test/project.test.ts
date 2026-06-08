@@ -59,9 +59,11 @@ describe("Project directories schemas", () => {
           projectID: ProjectV2.ID.make("project"),
         },
       )
-      expect(Schema.decodeUnknownSync(ProjectV2.Directories)([AbsolutePath.make("/tmp/project")])).toEqual([
-        AbsolutePath.make("/tmp/project"),
-      ])
+      expect(
+        Schema.decodeUnknownSync(ProjectV2.Directories)([
+          { directory: AbsolutePath.make("/tmp/project"), type: "main" },
+        ]),
+      ).toEqual([{ directory: AbsolutePath.make("/tmp/project"), type: "main" }])
     }),
   )
 
@@ -90,8 +92,8 @@ describe("Project directories schemas", () => {
         .pipe(Effect.orDie)
 
       expect(yield* project.directories({ projectID })).toEqual([
-        AbsolutePath.make("/repo/a"),
-        AbsolutePath.make("/repo/z"),
+        { directory: AbsolutePath.make("/repo/a"), type: "main" },
+        { directory: AbsolutePath.make("/repo/z"), type: "root" },
       ])
     }),
   )
