@@ -15,6 +15,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { Identifier } from "@opencode-ai/core/util/identifier"
 import { tint, useTheme } from "../../context/theme"
 import { EmptyBorder, SplitBorder } from "../../ui/border"
 import { useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
@@ -99,6 +100,14 @@ const money = new Intl.NumberFormat("en-US", {
 })
 
 const DRAFT_RETENTION_MIN_CHARS = 20
+
+function createMessageID() {
+  return `msg_${Identifier.ascending()}`
+}
+
+function createPartID() {
+  return `prt_${Identifier.ascending()}`
+}
 
 function randomIndex(count: number) {
   if (count <= 0) return 0
@@ -1016,6 +1025,7 @@ export function Prompt(props: PromptProps) {
       sessionID = res.data.id
     }
 
+    const messageID = createMessageID()
     const inputText = expandTrackedPastedText(
       store.prompt.input,
       input.extmarks.getAllForTypeId(promptPartTypeId).flatMap((extmark) => {
@@ -1084,23 +1094,33 @@ export function Prompt(props: PromptProps) {
       })
     } else {
       move.startSubmit()
+      const parts = [
+        ...editorParts.map((part) => ({ id: createPartID(), ...part })),
+        {
+          id: createPartID(),
+          type: "text" as const,
+          text: inputText,
+        },
+        ...nonTextParts.map((part) => ({ id: createPartID(), ...part })),
+      ]
+      const request = {
+        sessionID,
+        messageID,
+        agent: agent.name,
+        model: selectedModel,
+        variant,
+        parts,
+      }
+      sync.session.addOptimisticPrompt(request)
       sdk.client.session
         .prompt({
-          sessionID,
-          ...selectedModel,
-          agent: agent.name,
-          model: selectedModel,
-          variant,
-          parts: [
-            ...editorParts,
-            {
-              type: "text",
-              text: inputText,
-            },
-            ...nonTextParts,
-          ],
+          ...request,
+          parts: request.parts.map((part) => {
+            const { id: _id, ...rest } = part
+            return rest
+          }),
         })
-        .catch(() => {})
+        .catch(() => sync.session.removeOptimisticPrompt(request.sessionID, request.messageID))
       if (editorParts.length > 0) editor.markSelectionSent()
     }
     history.append({
